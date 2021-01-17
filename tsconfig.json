@@ -1,11 +1,19 @@
 {
 	"compilerOptions": {
+		"module": "ES2020",
 		"target": "ES2017",
 		"lib": [
 			"DOM",
 			"ES6",
 			"ES2017"
 		],
+		"outDir": "dist",
+		"sourceMap": true,
+		"rootDir": ".",
+		"experimentalDecorators": true,
+		"strict": true,
+		"esModuleInterop": true,
 		"types": ["foundry-pc-types"]
-	}
+	},
+	"include": ["src"]
 }

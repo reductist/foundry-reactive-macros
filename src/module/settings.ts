@@ -1,3 +1,4 @@
-export const registerSettings = function() {
-	// Register any custom module settings here
-}
+
+export const registerSettings = () => {
+  // register settings here
+};

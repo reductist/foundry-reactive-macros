@@ -2,6 +2,12 @@
   "private": true,
   "name": "reactive-macros",
   "version": "0.1.0",
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "node": true
+    }
+  },
   "description": "",
   "scripts": {
     "package": "gulp package",

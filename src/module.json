@@ -1,6 +1,6 @@
 {
-  "name": "reactive-macros",
-  "title": "reactive-macros",
+  "name": "reactiveMacros",
+  "title": "reactiveMacros",
   "description": "",
   "systems": [],
   "version": "0.1.0",
@@ -14,10 +14,10 @@
   ],
   "scripts": [],
   "esmodules": [
-    "reactive-macros.js"
+    "reactiveMacros.js"
   ],
   "styles": [
-    "reactive-macros.css"
+    "reactiveMacros.css"
   ],
   "packs": [],
   "languages": [],
