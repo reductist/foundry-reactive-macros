@@ -1,20 +1,29 @@
 // reserved for imports
 
-export declare type ValidSelectorTypes = 'Token' | 'User' | 'Macro';
+// input constraints
+declare type ValidSelectorTypes = 'Token' | 'User' | 'Macro';
+declare type ValidActorTypes = 'Token' | 'User';
 
-export const getSelectedTokens = (): Token[] => (canvas.tokens.controlled.length === 0) ? ui.notifications.warn('No token is currently selected') : canvas.tokens.controlled;
-export const getSelectedToken = (): Token => {
-  const tokenArr = getSelectedTokens();
-  if (tokenArr.length > 1) {
-    ui.notifications.warn('More than 1 target is currently selected');
-  }
-  const [token] = tokenArr;
-  return token;
+// token
+type SelectedToken = InstanceType<typeof Token>;
+interface TokenUtilities {
+  getSelectedTokens(this: TokenUtilities): () => Array<SelectedToken>,
+  getSelectedToken(this: TokenUtilities): () => SelectedToken,
+};
+export const TokenUtils: TokenUtilities = {
+  getSelectedTokens: function (this: TokenUtilities) {
+    return canvas.tokens.controlled;
+  },
+  getSelectedToken: function (this: TokenUtilities) {
+    const tokenArr = this.getSelectedTokens();
+    if (tokenArr.length === 1 && Array.isArray(tokenArr)) {
+      const [token] = tokenArr;
+      return token;
+    }
+  },
 }
-const getSelectedTokenProp = (prop: keyof Token) => getSelectedToken()[prop];
-const currentUser = game.user;
-const currentChar = getSelectedTokenProp('name')
 
+// user
 export const UserUtils = {
   user: () => game.user,
   name: () => game.user.name,
@@ -26,20 +35,34 @@ export const UserUtils = {
   targets: () => game.user.targets,
 };
 
-const getActor = (selector: ValidSelectorTypes) => {
-  if (selector === 'Token') {
-    return getSelectedToken().actor;
-  }
-  if (selector === 'User') {
-    return UserUtils.actor;
-  }
-  if (selector === 'Macro') {
-    // TODO: scope path scoping so TS doesn't yell errors at me
-    const allMacros = game.macros.apps[0].macros.filter(macroSlot => macroSlot.macro !== null).map(macro => macro.macro);
-    const visibleMacros = allMacros.filter(macro => macro.visible === true);
-    const uniqueIds = new Set(...[visibleMacros.map(macro => macro.data.author)]);
-    const allUsers = [...game.users]
-    return allUsers.filter(user => [...uniqueIds].includes(user.data.id));
-  }
+
+
+// actor
+const getActor = (selector: ValidActorTypes) => {
+  const dispatcher = [
+    {
+      condition: (selector === 'Token'),
+      action: getSelectedToken().actor,
+    },
+    {
+      condition: (selector === 'User'),
+      action: UserUtils.actor,
+    }
+  ];
+  dispatcher.forEach((scenario) => {
+    if (scenario.condition) {
+      return scenario.action;
+    }
+  });
 }
 
+
+// TODO: this use case doesn't make sense here but move to Macro section
+// if (selector === 'Macro') {
+//   // TODO: scope path scoping so TS doesn't yell errors at me
+//   const allMacros = game.macros.apps[0].macros.filter(macroSlot => macroSlot.macro !== null).map(macro => macro.macro);
+//   const visibleMacros = allMacros.filter(macro => macro.visible === true);
+//   const uniqueIds = new Set(...[visibleMacros.map(macro => macro.data.author)]);
+//   const allUsers = [...game.users]
+//   return allUsers.filter(user => [...uniqueIds].includes(user.data.id));
+// }

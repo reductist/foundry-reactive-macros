@@ -17,7 +17,7 @@ Hooks.once('init', async function() {
   console.log('reactive-macros | Initializing reactive-macros');
 
   // Assign custom classes and constants here
-  
+
 
   // Register custom module settings
   registerSettings();
