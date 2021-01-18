@@ -4,23 +4,40 @@
 declare type ValidSelectorTypes = 'Token' | 'User' | 'Macro';
 declare type ValidActorTypes = 'Token' | 'User';
 
+
 // token
-type SelectedToken = InstanceType<typeof Token>;
+const GenericActor = (function<T>(arg: new (...args: any[])=> T) : T{ return null as any})(Actor);
+const GenericToken = (function<T>(arg: new (...args: any[])=> T) : T{ return null as any})(Token);
+interface GenericToken {
+  actor: typeof GenericActor;
+}
 interface TokenUtilities {
-  getSelectedTokens(this: TokenUtilities): () => Array<SelectedToken>,
-  getSelectedToken(this: TokenUtilities): () => SelectedToken,
+  getSelectedTokens(this: TokenUtilities): () => Array<typeof GenericToken>,
+  getSelectedToken(this: TokenUtilities): () => typeof GenericToken,
+  getSelectedTokenActor(this: TokenUtilities): () => typeof GenericActor,
+  updateTokenImage: (path:string) => void, 
 };
+const updateTokenImage = async (path: string): Promise<void> => await canvas.tokens.controlled[0].update({ img: path });
 export const TokenUtils: TokenUtilities = {
   getSelectedTokens: function (this: TokenUtilities) {
     return canvas.tokens.controlled;
   },
   getSelectedToken: function (this: TokenUtilities) {
-    const tokenArr = this.getSelectedTokens();
-    if (tokenArr.length === 1 && Array.isArray(tokenArr)) {
-      const [token] = tokenArr;
-      return token;
+    if (canvas.tokens.controlled.length !== 1) {
+      return ui.notifications.error('More than 1 token is currently selected')
     }
+    return canvas.token.controlled[0]['actor'];
   },
+  getSelectedTokenActor: function (this: TokenUtilities) {
+    return canvas.tokens.controlled[0]['actor'];
+  },
+  updateTokenImage: function (imgpath: string) {
+    try {
+      updateTokenImage(imgpath);
+    } catch(e) {
+      ui.notifications.error(`An error occurred: ${e}`);
+    }
+  }
 }
 
 // user
@@ -36,26 +53,28 @@ export const UserUtils = {
 };
 
 
-
 // actor
-const getActor = (selector: ValidActorTypes) => {
+export const getActor = (selector: ValidActorTypes) => {
+  const selectorLower = selector.toLowerCase();
+  const actorArr: Actor[] = [];
   const dispatcher = [
     {
-      condition: (selector === 'Token'),
-      action: getSelectedToken().actor,
+      condition: (selectorLower === 'token'),
+      action: canvas.tokens.controlled[0],
     },
     {
-      condition: (selector === 'User'),
-      action: UserUtils.actor,
+      condition: (selectorLower === 'user'),
+      action: UserUtils.actor(),
     }
   ];
   dispatcher.forEach((scenario) => {
     if (scenario.condition) {
-      return scenario.action;
+      actorArr.push(scenario.action);
     }
   });
+  const [actor] = actorArr;
+  return actor;
 }
-
 
 // TODO: this use case doesn't make sense here but move to Macro section
 // if (selector === 'Macro') {
