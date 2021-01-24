@@ -1,21 +1,24 @@
 module.exports = {
   env: {
     browser: true,
-    es2021: true
+    es2021: true,
   },
   extends: [
-    'standard'
+    'standard',
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 12,
-    sourceType: 'module'
+    sourceType: 'module',
   },
-  plugins: [
-    '@typescript-eslint'
-  ],
+  plugins: ['@typescript-eslint', 'prettier'],
   rules: {
-    "semi": ["always"],
-    "quotes": ["backtick"],
-  }
-}
+    semi: ['error', 'always'],
+    'comma-dangle': 0,
+    'array-bracket-spacing': 0,
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/ban-ts-comment': 'off',
+  },
+};
