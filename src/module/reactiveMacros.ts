@@ -2,68 +2,14 @@
 
 // input constraints
 declare type ValidActorSelectorTypes = 'Token' | 'token' | 'User' | 'user';
-
-// tokens
+// type extensions
+type SimpleSpread<L, R> = R & Pick<L, Exclude<keyof L, keyof R>>;
 interface TokenUtilities {
   getSelectedTokens(this: TokenUtilities): Array<Token>;
   getSelectedToken(this: TokenUtilities): void | Token;
   getSelectedTokenActor(this: TokenUtilities): void | Actor;
   updateTokenImage: (path: string) => void;
 }
-
-export const TokenUtils: TokenUtilities = {
-  getSelectedTokens: function (this: TokenUtilities) {
-    return canvas.tokens.controlled;
-  },
-  getSelectedToken: function (this: TokenUtilities) {
-    if (canvas.tokens.controlled.length !== 1) {
-      return ui.notifications.error('More than 1 token is currently selected');
-    }
-    const [token] = this.getSelectedTokens();
-    return token;
-  },
-  getSelectedTokenActor: function (this: TokenUtilities) {
-    const token = this.getSelectedToken();
-    if (token) {
-      return token?.actor;
-    }
-  },
-  updateTokenImage: async function (imgpath: string) {
-    try {
-      const token = this.getSelectedToken();
-      if (token) {
-        return await token.update({ img: imgpath });
-      }
-    } catch (e) {
-      return ui.notifications.error(`An error occurred: ${e}`);
-    }
-  },
-};
-
-// actor
-export const getActor = (selector: ValidActorSelectorTypes): Actor => {
-  const selectorLower = selector.toLowerCase();
-  const actorArr: Actor[] = [];
-  const getUserActor = () => game.user.character;
-  const dispatcher = [
-    {
-      condition: selectorLower === 'token',
-      action: TokenUtils.getSelectedTokenActor(),
-    },
-    {
-      condition: selectorLower === 'user',
-      action: getUserActor(),
-    },
-  ];
-  dispatcher.forEach((scenario) => {
-    if (scenario.condition && scenario.action !== null && scenario.action !== undefined) {
-      actorArr.push(scenario.action);
-    }
-  });
-  const [actor] = actorArr;
-  return actor;
-};
-
 interface AbilityScore {
   checkBonus: number;
   dc: number
@@ -110,13 +56,91 @@ interface Resources {
   secondary: {value: null | number, max: null | number, sr: boolean, lr: boolean, label: ''}
   tertiary: {value: null | number, max: null | number, sr: boolean, lr: boolean, label: ''}
 }
-export const ActorUtils = {
-  getAbilityScores: (): Abilities => getActor('user').data.data.abilities,
-  getAttributes: (): Attributes => getActor('user').data.data.attributes,
-  getBonuses: (): Bonuses => getActor('user').data.data.bonuses,
-  getResources: (): Resources => getActor('user').data.data.resources,
-  getSkills: (): any => getActor('user').data.data.skills,
-  getSpells: (): any => getActor('user').data.data.spells,
+interface ActorData {
+  data: {
+    data: {
+      abilities: Abilities;
+      attributes: Attributes;
+      bonuses: Bonuses;
+      resources: Resources;
+      skills: any;
+      spells: any;
+    }
+  }
+}
+interface ActorInstance extends SimpleSpread<Actor, ActorData> {
+  [key: string]: any;
+}
+// tokens
+export const TokenUtils: TokenUtilities = {
+  getSelectedTokens: function (this: TokenUtilities) {
+    return canvas.tokens.controlled;
+  },
+  getSelectedToken: function (this: TokenUtilities) {
+    if (canvas.tokens.controlled.length !== 1) {
+      return ui.notifications.error('More than 1 token is currently selected');
+    }
+    const [token] = this.getSelectedTokens();
+    return token;
+  },
+  getSelectedTokenActor: function (this: TokenUtilities) {
+    const token = this.getSelectedToken();
+    if (token) {
+      return token?.actor;
+    }
+  },
+  updateTokenImage: async function (imgpath: string) {
+    try {
+      const token = this.getSelectedToken();
+      if (token) {
+        return await token.update({ img: imgpath });
+      }
+    } catch (e) {
+      return ui.notifications.error(`An error occurred: ${e}`);
+    }
+  },
+};
+
+// actor
+export const getActor = (selector: ValidActorSelectorTypes): ActorInstance | any | null => {
+  const selectorLower = selector.toLowerCase();
+  const actorArr: Actor[] = [];
+  const getUserActor = () => game.user.character;
+  const dispatcher = [
+    {
+      condition: selectorLower === 'token',
+      action: TokenUtils.getSelectedTokenActor(),
+    },
+    {
+      condition: selectorLower === 'user',
+      action: getUserActor(),
+    },
+  ];
+  dispatcher.forEach((scenario) => {
+    if (scenario.condition && scenario.action !== null && scenario.action !== undefined) {
+      actorArr.push(scenario.action);
+    }
+  });
+  const [actor] = actorArr;
+  return (actor) || null;
+};
+
+export const ActorUtils = (fn: 'getAbilityScores' | 'getAttributes' | 'getBonuses' | 'getResources' | 'getSkills' | 'getSpells'): ActorData | null => {
+  const thisActor = getActor('user') ?? null;
+  if (thisActor === null || thisActor === undefined) {
+    ui.notifications.error('No Actor is currently defined for current user.');
+    return null;
+  } else {
+    const actorData = {
+      getAbilityScores: (): Abilities => thisActor.data.data.abilities,
+      getAttributes: (): Attributes => thisActor.data.data.attributes,
+      getBonuses: (): Bonuses => thisActor.data.data.bonuses,
+      getResources: (): Resources => thisActor.data.data.resources,
+      getSkills: (): any => thisActor.data.data.skills,
+      getSpells: (): any => thisActor.data.data.spells,
+    };
+    return actorData[fn]();
+  }
 };
 
 // user
@@ -127,7 +151,7 @@ interface UserData {
   name: () => string;
   charname: () => string;
   id: () => string;
-  data: () => EntityData;
+  data: () => any;
   actor: () => Actor;
   isActive: () => boolean;
   isGM: () => boolean;
@@ -145,110 +169,87 @@ export const UserUtils: UserData = {
   targets: () => game.user.targets,
 };
 
-// macros
+// Active Effects
 
-interface HotbarMacro extends Macro {
-  cssClass: string;
-  icon: string;
-  key: number;
-  slot: number;
-  macro: any;
-  [key: string]: unknown;
-}
-interface Hotbar {
-  macros: Macro[];
-}
-
-const getHotbarMacros = (): Macro[] => {
-  const test = (m: { macro: { visible: boolean; } | null; }) => m.macro !== null && m.macro.visible === true;
-  const [hb, ] = (game.macros.apps) as unknown as Hotbar[];
-  const macros: HotbarMacro[] = hb.macros as HotbarMacro[];
-  return macros.filter(test);
-};
-
-export const MacroUtils = {
-  getHotbarMacros,
-};
-
-interface MacroParamObject {
-  slot: number;
-  macroNumber: number;
-  name: string;
-  condition: boolean;
-}
-
-const macroProxy = (macroPage: number, macroNumber: number) => {
-  const dataPath = UserUtils.actor().data.data.attributes.hp;
-  const trigger = 5;
-  const adjustedNumber = macroNumber - 1;
-  const selector = document.getElementById('macro-list');
-  const handler = {
-    get (target, key) {
-      if (key === 'isProxy') {
-        return true;
-      }
-      const prop = target[key];
-      if (typeof prop === 'undefined') {
-        return;
-      }
-      if (!prop.isProxy && typeof prop === 'object') {
-        target[key] = new Proxy(prop, handler);
-      }
-      return target[key];
-    },
-    set (target, key, value) {
-      target[key] = value;
-      if (value <= trigger) {
-        selector?.children[macroNumber].click();
-        console.log('Setting', target, `.${key} to equal`, value);
-        return true;
-      }
+const getPlayerCharacters = () => {
+  const playerTable: ActorInstance|Actor[] = [];
+  canvas.tokens.placeables.forEach((token: Token) => {
+    if (token.actor === null) {
+      return;
     }
+    const actor = game.actors.get(token.actor.data._id);
+    if (actor.hasPlayerOwner) {
+      playerTable.push(actor);
+    }
+  });
+  return playerTable;
+};
+
+const checkEffectById = (actorId: string, effectId: string): boolean => {
+  const players = getPlayerCharacters();
+  const matched: string[] = [];
+  players.forEach((char) => char.effects.forEach((_, key) => {
+    if (key === effectId) {
+      matched.push(char.id);
+    }
+  }));
+  return !!(matched.includes(actorId));
+};
+
+const checkRange = (t1: Token, t2: Token): number => {
+  const extractCoords = (token: Token) => {
+    const x: number = token.data.x;
+    const y: number = token.data.y;
+    return {
+      x: x,
+      y: y,
+    };
   };
-  return new Proxy(dataPath, handler);
+  const { x: x1, y: y1 } = extractCoords(t1);
+  const { x: x2, y: y2 } = extractCoords(t2);
+  const xDist = Math.abs(x1 - x2);
+  const yDist = Math.abs(y1 - y2);
+  const dist = Math.max(xDist, yDist);
+  return dist / canvas.scene.data.grid * canvas.scene.data.gridDistance;
 };
 
-async function createHotbarMacro ({ slot, macroNumber, name, condition }: MacroParamObject): Promise<void> {
-  const command = `game.user.getHotbarMacros()[${macroNumber}].macro.execute()`;
-  // eslint-disable-next-line
-  const macroName = name || `_${UserUtils.charname()}`;
-  const macro = await Macro.create({
-    name: macroName,
-    type: 'script',
-    command: command,
-    flags: { 'dnd5e.itemMacro': true }
-  }, { displaySheet: true });
-  const assignMacro = async (macro: PromiseLike<Macro>) => await macro.then(
-    m => game.user.assignHotbarMacro(m, slot)
-  );
+const createActiveEffect = (actor: ActorInstance, name: string, keyPath: string, value: number) => {
+  const activeEffect = actor.effects.find(i => i.data.label === name);
+  if (activeEffect !== null) {
+    const changes = activeEffect.data.changes;
+    changes[0].value = value;
+    activeEffect.update({ changes });
+  } else {
+    const effectData = {
+      label: name,
+      icon: '',
+      changes: [{
+        key: keyPath,
+        mode: 2,
+        value: value,
+        priority: '20'
+      }]
+    };
+    actor.createEmbeddedEntity('ActiveEffect', effectData);
+  }
+};
+
+function updateActor() {
+  const playerTable = getPlayerCharacters();
+  for (let i = 0; i < playerTable.length; i++) {
+    const actor2 = playerTable[i][0];
+    let token2 = playerTable[i][1];
+    let save = newSave(actor2, playerTable)
+    let actor = game.actors.get(actor2._id)
+    console.log("Aura update")
+    createActiveEffect(actor, save)
+  }
+  return;
 }
 
-// TODO: this use case doesn't make sense here but move to Macro section
-// if (selector === 'Macro') {
-//   // TODO: scope path scoping so TS doesn't yell errors at me
-//   const allMacros = game.macros.apps[0].macros.filter(macroSlot => macroSlot.macro !== null).map(macro => macro.macro);
-//   const visibleMacros = allMacros.filter(macro => macro.visible === true);
-//   const uniqueIds = new Set(...[visibleMacros.map(macro => macro.data.author)]);
-//   const allUsers = [...game.users]
-//   return allUsers.filter(user => [...uniqueIds].includes(user.data.id));
-// }
-
-// dialog
-export const rmDialog = new Dialog({
-  title: 'Reactive Macros',
-  content: '<p>Select macro(s) to auto-trigger and a corresponding trigger condition</p>',
-  buttons: {
-    one: {
-      icon: '<i class="fas fa-check"></i>',
-      label: 'Option One',
-      callback: () => console.log('Chose One')
-    },
-    two: {
-      icon: '<i class="fas fa-times"></i>',
-      label: 'Option Two',
-      callback: () => console.log('Chose Two')
-    }
-  },
-  default: 'two',
-  close: (html: HTMLElement | JQuery<HTMLElement>) => console.log(`This always is logged no matter which option is chosen ${html}`)
-}).render(true);
+Hooks.on("updateToken", (scene, token, update, flags, id) => {
+  let movement = getProperty(update, "x") || getProperty(update, "y");
+  if (movement !== undefined) {
+    updateActor();
+  }
+})
